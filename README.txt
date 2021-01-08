@@ -1,3 +1,12 @@
+Golf Prediction Model
+Written by Dylan Webb 
+V 1.0 -- 1/7/2021
+V 1.1 -- 1/8/2021
+  score now represents total strokes over the top player's strokes in a given tournament
+  random shuffling of names corrects bias toward players at the beginning of the alphabet
+  golf_predict no longer necessary
+  cosmetic changes
+
 A random forest golf prediction model which forecasts the top 10 players in the upcoming tournament on the pga tour
 Built using the scikitlearn module in python
 Utilizes data scraped from pgatour.com
