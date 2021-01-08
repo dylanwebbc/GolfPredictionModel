@@ -8,4 +8,4 @@ The golf prediction model functions as follows:
   +The same metrics are created for players in the upcoming tournament and this data is stored in the golf_predict.csv file
   +A random forest is trained on golf_train.csv and then used on golf_predict.csv to predict the scores for each player in the upcoming tournament
   +The predicted scores are weighted by player performance in the same tournament held the previous season
-  +The last two steps are looped 50 times to minimize randomness
+  +The last two steps are looped 100 times to minimize randomness
