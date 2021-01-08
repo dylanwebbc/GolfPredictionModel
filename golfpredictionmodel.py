@@ -1,6 +1,3 @@
-#GOLF PREDICTION MODEL
-#Written by Dylan Webb 1.7.21
-
 import pandas as pd
 import numpy as np
 
@@ -85,10 +82,12 @@ def pgaData():
 
     df_year = pd.DataFrame()
 
+    num = 0
     for tourney in tourneys:
-      print(tourney)
+      print(num, "/", len(tourneys))
+      num += 1
 
-      df1 = scrapeStats("Score", "108", year, tourney)
+      df1 = scrapeStats("Score", "108", year, tourney, 3) #Strokes
       df2 = scrapeStats("Driving Accuracy", "102", year, tourney)
       df3 = scrapeStats("Greens In Regulation", "103", year, tourney)
       df4 = scrapeStats("Putting Average", "104", year, tourney)
@@ -101,7 +100,9 @@ def pgaData():
       skip = False
       for i in range(len(dataframes)):
         if len(dataframes[i]) == 0:
-          print("  Missing Stat", i + 1)
+          if skip == False:
+            print("Missing Stats:", tourney)
+          print(i + 1)
           skip = True
 
       if skip == False:
@@ -113,12 +114,17 @@ def pgaData():
           df_tourney = pd.merge(df_tourney, df, on = "Name")
         df_tourney["Tourney"] = tourneyNum
         tourneyNum += 1
+
+        #normalize score
+        df_tourney["Score"] -= df_tourney["Score"].iloc[0]
         
         #combine dataframes from different tournaments
         if tourney == tourneys[0]:
           df_year = df_tourney
         else:
           df_year = pd.concat([df_year, df_tourney], axis = 0)
+
+    print(len(tourneys), "/", len(tourneys),"\n")
 
     #combine dataframes from different years
     df_year["Year"] = int(year)
@@ -132,13 +138,14 @@ def pgaData():
 #CREATE DATAFRAME FOR TRAINING
 
 def trainingData():
-  print("\nCreating Training Data...")
+  print("Creating Training Data...")
   df = pd.read_csv("golf.csv")
   numTourneys = df["Tourney"].iloc[len(df["Tourney"]) - 1]
   df_total = pd.DataFrame() #dataframe to store ouput data
   numPredict = 2 #number of tournaments to predict on
 
   for i in range(numTourneys - numPredict):
+    print(i, "/", numTourneys)
     #set tourney dataframe to next highest tournament and create stats dataframe
     mask = df["Tourney"] == numTourneys - i
     df_tourney = pd.DataFrame()
@@ -184,6 +191,8 @@ def trainingData():
     else:
       df_total = pd.concat([df_total, df_tourney], axis = 0)
 
+  print(numTourneys, "/", numTourneys, "\n")
+
   #name columns of df_total
   cols = ["Name", "Score"]
   for i in range(numPredict):
@@ -200,7 +209,7 @@ def trainingData():
 #CREATE DATAFRAME FOR PREDICTION
 
 def predictionData(names):
-  print("\nCreating Prediction Data...\n")
+  print("Creating Prediction Data...\n")
   df = pd.read_csv("golf.csv")
   numTourneys = df["Tourney"].iloc[len(df["Tourney"]) - 1]
   df_stats = pd.DataFrame() #dataframe to store player stats
@@ -249,7 +258,8 @@ def predictionData(names):
 
   #remove entries with missing data and export to csv
   names.dropna(how = "any", inplace = True)
-  names.to_csv("golf_predict.csv", index = False)
+  names.reset_index(drop = True, inplace = True)
+  return names
 
 #RANDOM FOREST REGRESSOR
 
@@ -262,13 +272,12 @@ def forestRegress(input):
 
   forest = RandomForestRegressor(warm_start = False, oob_score = True, 
                                 min_samples_leaf = 4, max_depth = 80,
-                                n_estimators = 120, n_jobs = -1)
+                                n_estimators = 80, n_jobs = -1)
 
   forest.fit(X_train, y_train.values.ravel())
 
   output = pd.DataFrame()
-  input.drop(["Name"], axis = 1, inplace = True)
-  output["Predicted Score"] = forest.predict(input)
+  output["Predicted Score"] = forest.predict(input.drop(["Name"], axis = 1))
   
   return output
 
@@ -278,34 +287,36 @@ def predictionModel(names, year, tourneyID, update = False):
   if update:
     pgaData()
     trainingData()
-    predictionData(names)
+  
+  golf_predict = predictionData(names)
 
   #create final prediction dataframe
   finalPrediction = pd.DataFrame()
-  finalPrediction["Name"] = names["Name"]
+  finalPrediction["Name"] = golf_predict["Name"]
   finalPrediction["Rank"] = pd.DataFrame(np.zeros((len(finalPrediction["Name"]), 1)))
 
   #run prediction model multiple times and combine results in final prediction
   print("Prediction Progress...")
-  for k in range(100):
-    print(k,"/ 100")
+  numReps = 100
+  for k in range(numReps):
+    print(k, "/", str(numReps))
 
-    #run random forest on the prediction data
-    p = forestRegress(pd.read_csv("golf_predict.csv"))
-    predicted = pd.concat([names, p], axis = 1)
-    predicted.sort_values(by = "Predicted Score", inplace = True)
-
+    #run random forest on the shuffled prediction data
+    golf_predict = golf_predict.sample(frac = 1).reset_index(drop = True)
+    p = forestRegress(golf_predict)
+    predicted = pd.concat([golf_predict["Name"], p], axis = 1)
+    
     #weight prediction by past performance in the same tournament
-    past = scrapeStats("Past Score", "108", str(year - 1), tourneyID)
+    past = scrapeStats("Past Score", "108", str(year - 1), tourneyID, 3)
+    past["Past Score"] -= past["Past Score"].iloc[0]
     pastMean = np.mean(past["Past Score"])
     for i in range(len(predicted["Name"])):
       for j in range(len(past["Name"])):
         if predicted["Name"].iloc[i] == past["Name"].iloc[j]:
-          predicted.loc[i, "Predicted Score"] = (3*predicted["Predicted Score"].iloc[i] + past["Past Score"].iloc[j])/4
+          predicted.loc[i, "Predicted Score"] = (9*predicted["Predicted Score"].iloc[i] + past["Past Score"].iloc[j])/10
           break
         if j == len(past["Name"]) - 1:
-          predicted.loc[i, "Predicted Score"] = (3*predicted["Predicted Score"].iloc[i] + pastMean)/4
-    
+          predicted.loc[i, "Predicted Score"] = (9*predicted["Predicted Score"].iloc[i] + pastMean)/10
     predicted.dropna(how = "any", inplace = True)
     predicted.sort_values(by = "Predicted Score", inplace = True)
     predicted.reset_index(drop = True, inplace = True)
@@ -329,7 +340,7 @@ def predictionModel(names, year, tourneyID, update = False):
   finalPrediction.reset_index(drop = True, inplace = True)
   finalPrediction.index += 1
   finalPrediction.drop(["Rank"], axis = 1, inplace = True)
-  print("100 / 100\n\nTournament Prediction:")
+  print(str(numReps), "/", str(numReps), "\n\nTournament Prediction:")
   print(finalPrediction[:10])
 
 predictionModel(pd.read_csv("TournamentOfChampions.csv"), 2021, "016")
