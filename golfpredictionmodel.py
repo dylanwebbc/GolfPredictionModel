@@ -220,7 +220,7 @@ def predictionData(names):
         for l in range(len(df.columns) - 3):
           df_statsRow[l + numEntries*(len(df.columns) - 2)] = df[mask].values[0][l+1]
         numEntries += 1
-        df_statsRow[numEntries*(len(df.columns) - 2) - 1] = k + 1
+        df_statsRow[numEntries*(len(df.columns) - 2) - 1] = float(k + 1)
 
       #record up until numPredict entries
       if numEntries == numPredict or k == numTourneys - 1:
@@ -262,7 +262,7 @@ def forestRegress(input):
 
   forest = RandomForestRegressor(warm_start = False, oob_score = True, 
                                 min_samples_leaf = 4, max_depth = 80,
-                                n_estimators = 120)
+                                n_estimators = 120, n_jobs = -1)
 
   forest.fit(X_train, y_train.values.ravel())
 
@@ -287,8 +287,8 @@ def predictionModel(names, year, tourneyID, update = False):
 
   #run prediction model multiple times and combine results in final prediction
   print("Prediction Progress...")
-  for k in range(50):
-    print(k,"/ 50")
+  for k in range(100):
+    print(k,"/ 100")
 
     #run random forest on the prediction data
     p = forestRegress(pd.read_csv("golf_predict.csv"))
@@ -329,7 +329,7 @@ def predictionModel(names, year, tourneyID, update = False):
   finalPrediction.reset_index(drop = True, inplace = True)
   finalPrediction.index += 1
   finalPrediction.drop(["Rank"], axis = 1, inplace = True)
-  print("50 / 50\n\nTournament Prediction:")
+  print("100 / 100\n\nTournament Prediction:")
   print(finalPrediction[:10])
 
 predictionModel(pd.read_csv("TournamentOfChampions.csv"), 2021, "016")
