@@ -6,6 +6,9 @@ V 1.1 -- 1/8/2021
   random shuffling of names corrects bias toward players at the beginning of the alphabet
   golf_predict no longer necessary
   cosmetic changes
+V 1.2 -- 1/19/2021
+  added formatting functionality to convert pga field name format to pga stat name format
+  separated tournament IDs into a separate csv file to streamline addition of new tournaments
 
 A random forest golf prediction model which forecasts the top 10 players in the upcoming tournament on the pga tour
 Built using the scikitlearn module in python
