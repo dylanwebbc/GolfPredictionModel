@@ -7,6 +7,20 @@ from bs4 import BeautifulSoup
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 
+#FORMATS FIELD DATA FROM PGA WEBSITE
+#Each name is "last, first" in field, but "first last" in stats scrape
+def formatField(fileName):
+  df = pd.read_csv(fileName)
+  print("Formatting Field...\n")
+  
+  #loop through every name and reformat
+  for i in range(len(df["Name"])):
+      name = df["Name"].iloc[i]
+      last_name = name[0:name.find(',')]
+      first_name = name[(name.find(',') + 2):len(name)]
+      df.loc[i, "Name"] = first_name + " " + last_name
+  df.to_csv(fileName, index = False)
+
 #SCRAPE STATS FROM PGA WEBSITE
 
 def scrapeStats(col, statID, year, tourneyID, pos = 2):
@@ -41,7 +55,7 @@ def scrapeStats(col, statID, year, tourneyID, pos = 2):
   numName = 0
   for i in range(len(stats)):
     if stats[i].find(players[numName]) != -1:
-      colVals[numName] = stats[i + pos]
+      colVals[numName] = float(stats[i + pos].replace(',',''))
       numName += 1
       if numName == len(players):
         break
@@ -53,37 +67,27 @@ def scrapeStats(col, statID, year, tourneyID, pos = 2):
 
 def pgaData():
   print("Scraping Data from pgatour.com...")
-  years = [str(i) for i in range(2019, 2022)]
   tourneys = []
   tourneyNum = 1
+  ids = pd.read_csv("golf_tournaments.csv")
 
-  for year in years:
+  #iterate through each year of data
+  for i in range(len(ids.columns)):
+    year = str(ids.columns[i])
+    tourneys = ids[year].values
+    tourneys = tourneys[tourneys != 0]
     print("--" + year + "--")
-
-    #lists of tourney IDs to use for the given year
-    if year == "2019":
-      tourneys = ["464", "494", "521", "054", "489", "047", "457", "493", "016",
-                  "006", "002", "004", "003", "005", "007", "483", "473", "010",
-                  "009", "011", "475", "522", "041", "014", "012", "480", "019", 
-                  "033", "021", "023", "032", "026", "034", "524", "525", "030", 
-                  "518", "100", "476", "013", "027", "028", "060"]
-                  #470, 018, 472 removed
-
-    if year == "2020":
-      tourneys = ["490", "054", "464", "047", "020", "521", "527", "528", "489",
-                  "457", "493", "016", "006", "002", "004", "003", "005", "007",
-                  "483", "473", "010", "009", "021", "012", "034", "524", "533",
-                  "023", "525", "476", "033", "013", "027", "028", "060"]
-                  #472 removed
-
-    elif year == "2021":
-      tourneys = ["464", "026", "522", "054", "047", "521", "527", "528", "020",
-                  "014", "493", "457"]
 
     df_year = pd.DataFrame()
 
+    #iterate through each tournament in the given year
     num = 0
     for tourney in tourneys:
+      #reformat tourneyID
+      tourney = str(tourney)
+      while len(tourney) < 3:
+        tourney = "0" + tourney
+        
       print(num, "/", len(tourneys))
       num += 1
 
@@ -101,8 +105,8 @@ def pgaData():
       for i in range(len(dataframes)):
         if len(dataframes[i]) == 0:
           if skip == False:
-            print("Missing Stats:", tourney)
-          print(i + 1)
+            print(tourney, "missing:")
+          print("  ", i + 1)
           skip = True
 
       if skip == False:
@@ -128,7 +132,7 @@ def pgaData():
 
     #combine dataframes from different years
     df_year["Year"] = int(year)
-    if year == years[0]:
+    if year == str(ids.columns[0]):
       df_total = df_year
     else:
       df_total = pd.concat([df_total, df_year], axis = 0)
@@ -145,7 +149,7 @@ def trainingData():
   numPredict = 2 #number of tournaments to predict on
 
   for i in range(numTourneys - numPredict):
-    print(i, "/", numTourneys)
+    print(i, "/", numTourneys - numPredict)
     #set tourney dataframe to next highest tournament and create stats dataframe
     mask = df["Tourney"] == numTourneys - i
     df_tourney = pd.DataFrame()
@@ -191,7 +195,7 @@ def trainingData():
     else:
       df_total = pd.concat([df_total, df_tourney], axis = 0)
 
-  print(numTourneys, "/", numTourneys, "\n")
+  print(numTourneys - numPredict, "/", numTourneys - numPredict, "\n")
 
   #name columns of df_total
   cols = ["Name", "Score"]
@@ -283,11 +287,24 @@ def forestRegress(input):
 
 #PREDICTION MODEL
 
-def predictionModel(names, year, tourneyID, update = False):
+def predictionModel(fileName, year, tourneyID, update = False, formatF = True):
+
+  #update the golf and golf_train files for a new tournament
   if update:
     pgaData()
     trainingData()
-  
+    if formatF:
+      formatField(fileName)
+
+    #add current tournament ID for next update
+    ids = pd.read_csv("golf_tournaments.csv")
+    i = 0
+    while ids.loc[i, str(year)] != 0:
+      i += 1
+    ids.loc[i, str(year)] = tourneyID
+    ids.to_csv("golf_tournaments.csv", index = False)
+
+  names = pd.read_csv(fileName)
   golf_predict = predictionData(names)
 
   #create final prediction dataframe
@@ -317,6 +334,8 @@ def predictionModel(names, year, tourneyID, update = False):
           break
         if j == len(past["Name"]) - 1:
           predicted.loc[i, "Predicted Score"] = (9*predicted["Predicted Score"].iloc[i] + pastMean)/10
+
+    #rearrange prediction dataframe by predicted score
     predicted.dropna(how = "any", inplace = True)
     predicted.sort_values(by = "Predicted Score", inplace = True)
     predicted.reset_index(drop = True, inplace = True)
@@ -343,4 +362,6 @@ def predictionModel(names, year, tourneyID, update = False):
   print(str(numReps), "/", str(numReps), "\n\nTournament Prediction:")
   print(finalPrediction[:10])
 
-predictionModel(pd.read_csv("TournamentOfChampions.csv"), 2021, "016")
+#predictionModel("TournamentOfChampions.csv", 2021, "016")
+#predictionModel("SonyOpen.csv", 2021, "006")
+predictionModel("AmericanExpress.csv", 2021, "002")
