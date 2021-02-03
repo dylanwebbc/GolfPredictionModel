@@ -80,12 +80,24 @@ def tourneyData(year, tourney):
   df7 = scrapeStats("Scrambling", "130", year, tourney)
   df8 = scrapeStats("Birdie/Bogey", "02415", year, tourney)
 
-  return [df1, df2, df3, df4, df5, df6, df7, df8]
+  #normalize scores
+  df1["Score"] -= df1["Score"].iloc[0]
+  df2["Halfway Score"] -= min(df2["Halfway Score"])
+
+  #merge all stats into one dataframe
+  dataframes = [df1, df2, df3, df4, df5, df6, df7, df8]
+  df_tourney = pd.DataFrame()
+  df_tourney = dataframes[0]
+  dataframes.pop(0)
+  for df in dataframes:
+    df_tourney = pd.merge(df_tourney, df, on = "Name")
+
+  return df_tourney
 
 #CREATE DATAFRAME OF PGA STATS
 
 def pgaData():
-  print("Scraping Data from pgatour.com...")
+  print("Scraping All Data from pgatour.com...")
   tourneys = []
   tourneyNum = 1
   ids = pd.read_csv("golf_tournaments.csv")
@@ -110,38 +122,16 @@ def pgaData():
       print(num, "/", len(tourneys))
       num += 1
 
-      dataframes = tourneyData(year, tourney)
+      df_tourney = tourneyData(year, tourney)
 
-      #skip tournaments with missing values
-      skip = False
-      for i in range(len(dataframes)):
-        if len(dataframes[i]) == 0:
-          if skip == False:
-            print(tourney, "missing:")
-          print(i + 1, end =" ")
-          skip = True
-
-      if skip == False:
-        #merge all stats into one dataframe
-        df_tourney = pd.DataFrame()
-        df_tourney = dataframes[0]
-        dataframes.pop(0)
-        for df in dataframes:
-          df_tourney = pd.merge(df_tourney, df, on = "Name")
-        df_tourney["Tourney"] = tourneyNum
-        tourneyNum += 1
-
-        #normalize scores
-        df_tourney["Score"] -= df_tourney["Score"].iloc[0]
-        df_tourney["Halfway Score"] -= min(df_tourney["Halfway Score"])
+      df_tourney["Tourney"] = tourneyNum
+      tourneyNum += 1
         
-        #combine dataframes from different tournaments
-        if tourney == tourneys[0]:
-          df_year = df_tourney
-        else:
-          df_year = pd.concat([df_year, df_tourney], axis = 0)
+      #combine dataframes from different tournaments
+      if tourney == tourneys[0]:
+        df_year = df_tourney
       else:
-        print("")
+        df_year = pd.concat([df_year, df_tourney], axis = 0)
 
     print(len(tourneys), "/", len(tourneys),"\n")
 
@@ -311,20 +301,9 @@ def updateGolf(year, tourneyID):
     tourneyID = "0" + tourneyID
   
   df_total = pd.read_csv("golf.csv")
-  dataframes = tourneyData(year, tourneyID)
-  
-  #merge all stats into one dataframe
-  df_tourney = pd.DataFrame()
-  df_tourney = dataframes[0]
-  dataframes.pop(0)
-  for df in dataframes:
-    df_tourney = pd.merge(df_tourney, df, on = "Name")
+  df_tourney = tourneyData(year, tourneyID)
 
   df_tourney["Tourney"] = df_total["Tourney"].iloc[len(df_total["Tourney"]) - 1] + 1
-
-  #normalize scores
-  df_tourney["Score"] -= df_tourney["Score"].iloc[0]
-  df_tourney["Halfway Score"] -= min(df_tourney["Halfway Score"])
         
   #combine dataframe to the rest and output
   df_tourney["Year"] = int(year)
