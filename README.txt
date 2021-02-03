@@ -9,6 +9,10 @@ V 1.1 -- 1/8/2021
 V 1.2 -- 1/19/2021
   added formatting functionality to convert pga field name format to pga stat name format
   separated tournament IDs into a separate csv file to streamline addition of new tournaments
+V 1.3 -- 2/2/2021
+  pgaData function is no longer run by prediction model but remains accessible for reconstructing golf.csv
+  updating is now performed automatically and corresponding variables have been removed from prediction model function call
+  two new statistics added to dataframe
 
 A random forest golf prediction model which forecasts the top 10 players in the upcoming tournament on the pga tour
 Built using the scikitlearn module in python
