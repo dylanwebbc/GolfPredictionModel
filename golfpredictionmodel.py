@@ -11,7 +11,6 @@ from sklearn.model_selection import train_test_split
 #Each name is "last, first" in field, but "first last" in stats scrape
 def formatField(fileName):
   df = pd.read_csv(fileName)
-  print("Formatting Field...\n")
   
   #loop through every name and reformat
   for i in range(len(df["Name"])):
@@ -25,21 +24,27 @@ def formatField(fileName):
 
 def scrapeStats(col, statID, year, tourneyID, pos = 2):
 
-  #create soup object from url.
+  #create soup object from url and retrieve players
   url = "https://www.pgatour.com/stats/stat."+statID+".y"+year+".eon.t"+tourneyID+".html"
-  soup = BeautifulSoup(requests.get(url).text, 'lxml')
 
-  #get players from html tags and create dataframe
-  players = []
-  players_html = soup.select("td a")[1:]
-  for player in players_html:
-    players.append(player.get_text())
-  df = pd.DataFrame()
-  df["Name"] = players
+  retry = False
+  while True:
+    soup = BeautifulSoup(requests.get(url).text, 'lxml')
 
-  #check for missing data
-  if len(df) == 0:
-    return df
+    #get players from html tags and create dataframe
+    players = []
+    players_html = soup.select("td a")[1:]
+    for player in players_html:
+      players.append(player.get_text())
+    df = pd.DataFrame()
+    df["Name"] = players
+
+    #retry when data is missing
+    if len(df) > 0:
+      break
+    elif retry == False:
+      print("Connection failed, retrying...")
+      retry = True
   
   #get stats from html tags
   stats = []
@@ -62,6 +67,20 @@ def scrapeStats(col, statID, year, tourneyID, pos = 2):
   df[col] = colVals
 
   return df
+
+#COLLECT SINGLE TOURNAMENT DATA
+
+def tourneyData(year, tourney):
+  df1 = scrapeStats("Score", "108", year, tourney, 3) #Strokes
+  df2 = scrapeStats("Halfway Score", "116", year, tourney)
+  df3 = scrapeStats("Driving Accuracy", "102", year, tourney)
+  df4 = scrapeStats("Greens In Regulation", "103", year, tourney)
+  df5 = scrapeStats("Putting Average", "104", year, tourney)
+  df6 = scrapeStats("Stroke Differential", "02417", year, tourney)
+  df7 = scrapeStats("Scrambling", "130", year, tourney)
+  df8 = scrapeStats("Birdie/Bogey", "02415", year, tourney)
+
+  return [df1, df2, df3, df4, df5, df6, df7, df8]
 
 #CREATE DATAFRAME OF PGA STATS
 
@@ -91,14 +110,7 @@ def pgaData():
       print(num, "/", len(tourneys))
       num += 1
 
-      df1 = scrapeStats("Score", "108", year, tourney, 3) #Strokes
-      df2 = scrapeStats("Driving Accuracy", "102", year, tourney)
-      df3 = scrapeStats("Greens In Regulation", "103", year, tourney)
-      df4 = scrapeStats("Putting Average", "104", year, tourney)
-      df5 = scrapeStats("Stroke Differential", "02417", year, tourney)
-      df6 = scrapeStats("Scrambling", "130", year, tourney)
-
-      dataframes = [df1, df2, df3, df4, df5, df6]
+      dataframes = tourneyData(year, tourney)
 
       #skip tournaments with missing values
       skip = False
@@ -106,7 +118,7 @@ def pgaData():
         if len(dataframes[i]) == 0:
           if skip == False:
             print(tourney, "missing:")
-          print("  ", i + 1)
+          print(i + 1, end =" ")
           skip = True
 
       if skip == False:
@@ -119,14 +131,17 @@ def pgaData():
         df_tourney["Tourney"] = tourneyNum
         tourneyNum += 1
 
-        #normalize score
+        #normalize scores
         df_tourney["Score"] -= df_tourney["Score"].iloc[0]
+        df_tourney["Halfway Score"] -= min(df_tourney["Halfway Score"])
         
         #combine dataframes from different tournaments
         if tourney == tourneys[0]:
           df_year = df_tourney
         else:
           df_year = pd.concat([df_year, df_tourney], axis = 0)
+      else:
+        print("")
 
     print(len(tourneys), "/", len(tourneys),"\n")
 
@@ -267,7 +282,7 @@ def predictionData(names):
 
 #RANDOM FOREST REGRESSOR
 
-def forestRegress(input):
+def forestRegress(inputData):
   df = pd.read_csv("golf_train.csv")
   X = df.drop(["Name", "Score"], axis = 1)
   y = df["Score"]
@@ -281,27 +296,63 @@ def forestRegress(input):
   forest.fit(X_train, y_train.values.ravel())
 
   output = pd.DataFrame()
-  output["Predicted Score"] = forest.predict(input.drop(["Name"], axis = 1))
+  output["Predicted Score"] = forest.predict(inputData.drop(["Name"], axis = 1))
   
   return output
 
+#UPDATE GOLF DATAFRAME WITH ONE TOURNAMENT
+
+def updateGolf(year, tourneyID):
+  print("Scraping Data from pgatour.com...\n")
+
+  #reformat tourneyID
+  tourneyID = str(tourneyID)
+  while len(tourneyID) < 3:
+    tourneyID = "0" + tourneyID
+  
+  df_total = pd.read_csv("golf.csv")
+  dataframes = tourneyData(year, tourneyID)
+  
+  #merge all stats into one dataframe
+  df_tourney = pd.DataFrame()
+  df_tourney = dataframes[0]
+  dataframes.pop(0)
+  for df in dataframes:
+    df_tourney = pd.merge(df_tourney, df, on = "Name")
+
+  df_tourney["Tourney"] = df_total["Tourney"].iloc[len(df_total["Tourney"]) - 1] + 1
+
+  #normalize scores
+  df_tourney["Score"] -= df_tourney["Score"].iloc[0]
+  df_tourney["Halfway Score"] -= min(df_tourney["Halfway Score"])
+        
+  #combine dataframe to the rest and output
+  df_tourney["Year"] = int(year)
+  df_total = pd.concat([df_total, df_tourney], axis = 0)
+  df_total.to_csv("golf.csv", index = False)
+
 #PREDICTION MODEL
 
-def predictionModel(fileName, year, tourneyID, update = False, formatF = True):
+def predictionModel(fileName, year, tourneyID):
 
-  #update the golf and golf_train files for a new tournament
-  if update:
-    pgaData()
+  #check most recent id for update the golf and golf_train files for a new tournament
+  ids = pd.read_csv("golf_tournaments.csv")
+  tourneyNum = 0
+  while ids.loc[tourneyNum, str(year)] != 0:
+    tourneyNum += 1
+  tourneyNum -= 1
+
+  #reformat last tourneyID
+  lastID = str(ids.loc[tourneyNum, str(year)])
+  while len(lastID) < 3:
+    lastID = "0" + lastID
+  
+  if lastID != tourneyID:
+    updateGolf(str(year), ids.loc[tourneyNum, str(year)])
     trainingData()
-    if formatF:
-      formatField(fileName)
-
-    #add current tournament ID for next update
-    ids = pd.read_csv("golf_tournaments.csv")
-    i = 0
-    while ids.loc[i, str(year)] != 0:
-      i += 1
-    ids.loc[i, str(year)] = tourneyID
+    formatField(fileName)
+    #add current tournament ID to golf_tournaments file for next update
+    ids.loc[tourneyNum + 1, str(year)] = tourneyID
     ids.to_csv("golf_tournaments.csv", index = False)
 
   names = pd.read_csv(fileName)
@@ -312,9 +363,16 @@ def predictionModel(fileName, year, tourneyID, update = False, formatF = True):
   finalPrediction["Name"] = golf_predict["Name"]
   finalPrediction["Rank"] = pd.DataFrame(np.zeros((len(finalPrediction["Name"]), 1)))
 
+  #create past prediction dataframe
+  weightPast = False
+  past = scrapeStats("Past Score", "108", str(year - 1), tourneyID, 3)
+  if len(past) > 0:
+    weightPast = True
+    past["Past Score"] -= past["Past Score"].iloc[0]
+
   #run prediction model multiple times and combine results in final prediction
   print("Prediction Progress...")
-  numReps = 100
+  numReps = 200
   for k in range(numReps):
     print(k, "/", str(numReps))
 
@@ -324,16 +382,14 @@ def predictionModel(fileName, year, tourneyID, update = False, formatF = True):
     predicted = pd.concat([golf_predict["Name"], p], axis = 1)
     
     #weight prediction by past performance in the same tournament
-    past = scrapeStats("Past Score", "108", str(year - 1), tourneyID, 3)
-    past["Past Score"] -= past["Past Score"].iloc[0]
-    pastMean = np.mean(past["Past Score"])
-    for i in range(len(predicted["Name"])):
-      for j in range(len(past["Name"])):
-        if predicted["Name"].iloc[i] == past["Name"].iloc[j]:
-          predicted.loc[i, "Predicted Score"] = (9*predicted["Predicted Score"].iloc[i] + past["Past Score"].iloc[j])/10
-          break
-        if j == len(past["Name"]) - 1:
-          predicted.loc[i, "Predicted Score"] = (9*predicted["Predicted Score"].iloc[i] + pastMean)/10
+    if weightPast:
+      for i in range(len(predicted["Name"])):
+        for j in range(len(past["Name"])):
+          if predicted["Name"].iloc[i] == past["Name"].iloc[j]:
+            predicted.loc[i, "Predicted Score"] = (9*predicted["Predicted Score"].iloc[i] + past["Past Score"].iloc[j])/10
+            break
+          if j == len(past["Name"]) - 1:
+            predicted.loc[i, "Predicted Score"] = (9*predicted["Predicted Score"].iloc[i] + np.mean(past["Past Score"]))/10
 
     #rearrange prediction dataframe by predicted score
     predicted.dropna(how = "any", inplace = True)
@@ -364,4 +420,6 @@ def predictionModel(fileName, year, tourneyID, update = False, formatF = True):
 
 #predictionModel("TournamentOfChampions.csv", 2021, "016")
 #predictionModel("SonyOpen.csv", 2021, "006")
-predictionModel("AmericanExpress.csv", 2021, "002")
+#predictionModel("AmericanExpress.csv", 2021, "002")
+#predictionModel("FarmersInsurance.csv", 2021, "004")
+predictionModel("PhoenixOpen.csv", 2021, "003")
