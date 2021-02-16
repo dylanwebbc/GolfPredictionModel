@@ -176,7 +176,7 @@ def trainingData():
           for l in range(len(df.columns) - 3):
             df_statsRow[l + (numEntries)*(len(df.columns) - 2)] = df[mask].values[0][l+1]
           numEntries += 1
-          df_statsRow[(numEntries)*(len(df.columns) - 2) - 1] = k
+          df_statsRow[(numEntries)*(len(df.columns) - 2) - 1] = k - i
 
         #record up until numPredict entries
         if numEntries == numPredict or k == numTourneys - 1:
@@ -330,6 +330,7 @@ def predictionModel(fileName, year, tourneyID):
     updateGolf(str(year), ids.loc[tourneyNum, str(year)])
     trainingData()
     formatField(fileName)
+    
     #add current tournament ID to golf_tournaments file for next update
     ids.loc[tourneyNum + 1, str(year)] = tourneyID
     ids.to_csv("golf_tournaments.csv", index = False)
@@ -401,4 +402,6 @@ def predictionModel(fileName, year, tourneyID):
 #predictionModel("SonyOpen.csv", 2021, "006")
 #predictionModel("AmericanExpress.csv", 2021, "002")
 #predictionModel("FarmersInsurance.csv", 2021, "004")
-predictionModel("PhoenixOpen.csv", 2021, "003")
+#predictionModel("PhoenixOpen.csv", 2021, "003")
+#predictionModel("PebbleBeach.csv", 2021, "005")
+predictionModel("GenesisOpen.csv", 2021, "007")
