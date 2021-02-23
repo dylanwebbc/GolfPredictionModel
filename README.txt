@@ -29,7 +29,7 @@ Methodology:
   The predicted scores are weighted by player performance in the same tournament held the previous season
   The last two steps are looped 200 times to minimize randomness, and the predicted top ten players are displayed
 
-First-time setup:
+First-time Setup:
   Following the pattern of golf_tournaments.csv, create a csv file of IDs for all past tournaments you would like to train the model with
     (IDs are displayed in the URL on pgatour.com/stats when "tournament only" is selected for a given stat)
   Run createGolfCSV and createTrainingCSV from the golfdatahandler.py file
