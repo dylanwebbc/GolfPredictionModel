@@ -13,6 +13,10 @@ V 1.3 -- 2/2/2021
   pgaData function is no longer run by prediction model but remains accessible for reconstructing golf.csv
   updating is now performed automatically and corresponding variables have been removed from prediction model function call
   two new statistics added to dataframe
+V 1.4 -- 2/23/2021
+  Separated data creation and modification functions into golfdatahandler.py
+  Training data is now updated with each new tournament to save resources
+  Renamed functions for clarity
 
 A random forest golf prediction model which forecasts the top 10 players in the upcoming tournament on the pga tour
 Built using the scikitlearn module in python
