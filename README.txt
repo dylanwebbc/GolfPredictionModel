@@ -22,10 +22,23 @@ A random forest golf prediction model which forecasts the top 10 players in the 
 Built using the scikitlearn module in python
 Utilizes data scraped from pgatour.com
 
-The golf prediction model functions as follows:
-  +Data is first scraped from pgatour.com for tournaments from the 2019, 2020 and 2021 seasons and stored in the golf.csv file
-  +Training data is created from the golf.csv file and stored in the golf_train.csv file
-  +The same metrics are created for players in the upcoming tournament and this data is stored in the golf_predict.csv file
-  +A random forest is trained on golf_train.csv and then used on golf_predict.csv to predict the scores for each player in the upcoming tournament
-  +The predicted scores are weighted by player performance in the same tournament held the previous season
-  +The last two steps are looped 100 times to minimize randomness
+Methodology:
+  Data is scraped from pgatour.com and stored in the golf.csv file
+  Training data is created from the golf.csv file and stored in the golf_train.csv file
+  A random forest is trained on golf_train.csv and then used to predict the scores for each player in the upcoming tournament
+  The predicted scores are weighted by player performance in the same tournament held the previous season
+  The last two steps are looped 200 times to minimize randomness, and the predicted top ten players are displayed
+
+First-time setup:
+  Following the pattern of golf_tournaments.csv, create a csv file of IDs for all past tournaments you would like to train the model with
+    (IDs are displayed in the URL on pgatour.com/stats when "tournament only" is selected for a given stat)
+  Run createGolfCSV and createTrainingCSV from the golfdatahandler.py file
+  Add the ID of the tournament you would like to predict to your tournaments csv file
+  Follow the instructions for prediction
+
+Instructions for Prediction:
+  Create a new csv file with a single column titled "Name" and copy and paste field data from pgatour.com into that column
+    (names will be pasted in the form "last, first" and later automatically formatted to "first last")
+  Run predictionModel from the golfpredictionmodel.py file
+    (arguments: name of the csv file of names, year, tournament ID)
+  
