@@ -33,10 +33,9 @@ def updateTrain():
   print("Updating Training Data...\n")
   df = pd.read_csv("golf.csv")
   df_train = pd.read_csv("golf_train.csv")
-  numTourneys = df["Tourney"].iloc[len(df["Tourney"]) - 1]
 
   #get training data for the latest tournament
-  df_tourney = gdh.getTrainingData(df, numTourneys, 0)
+  df_tourney = gdh.getTrainingData(0)
 
   #remove entries with missing data and export to csv
   df_train = pd.concat([df_tourney, df_train], axis = 0)
@@ -104,8 +103,9 @@ def predictionModel(fileName, year, tourneyID):
     ids.to_csv("golf_tournaments.csv", index = False)
 
   #get prediction data to input into the random forest
+  print("Creating Prediction Data...\n")
   names = pd.read_csv(fileName)
-  golf_predict = gdh.getPredictionData(names)
+  golf_predict = gdh.getTrainingData(-1, names)
 
   #create final prediction dataframe
   finalPrediction = pd.DataFrame()
@@ -175,5 +175,6 @@ def predictionModel(fileName, year, tourneyID):
 #predictionModel("PhoenixOpen.csv", 2021, "003")
 #predictionModel("PebbleBeach.csv", 2021, "005")
 #predictionModel("GenesisOpen.csv", 2021, "007")
-
+#predictionModel("PuertoRicoOpen.csv", 2021, "483")
+  
 predictionModel("WorldGolf.csv", 2021, "473")

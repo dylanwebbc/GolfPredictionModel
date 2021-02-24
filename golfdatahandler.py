@@ -79,15 +79,21 @@ def getPgaData(year, tourney):
   return df_tourney
 
 #COLLECT TRAINING DATA FOR EACH PLAYER IN A GIVEN TOURNAMENT
+#Also used to create prediction data
 
-def getTrainingData(df, numTourneys, index):
+def getTrainingData(index, df_train = pd.DataFrame()):
   numPredict = 2 #number of tournaments to predict on
-  #set train dataframe to next highest tournament and create stats dataframe
-  mask = df["Tourney"] == numTourneys - index
-  df_train = pd.DataFrame()
-  df_train["Name"] = df[mask]["Name"]
-  df_train["Score"] = df[mask]["Score"]
   df_stats = pd.DataFrame()
+  df = pd.read_csv("golf.csv")
+  numTourneys = df["Tourney"].iloc[len(df["Tourney"]) - 1]
+  predict = True
+
+  if df_train.empty:
+    #if not predicting, take names and score from golf.csv
+    predict = False
+    mask = df["Tourney"] == numTourneys - index
+    df_train["Name"] = df[mask]["Name"]
+    df_train["Score"] = df[mask]["Score"]
 
   #loop through each player and find most recent numPredict tournament stats
   for j in range(len(df_train["Name"])):
@@ -101,9 +107,9 @@ def getTrainingData(df, numTourneys, index):
       #record stats if available
       if len(df[mask]) == 1:
         for l in range(len(df.columns) - 3):
-          df_statsRow[l + (numEntries)*(len(df.columns) - 2)] = df[mask].values[0][l+1]
+          df_statsRow[l + numEntries*(len(df.columns) - 2)] = df[mask].values[0][l+1]
         numEntries += 1
-        df_statsRow[(numEntries)*(len(df.columns) - 2) - 1] = k - index
+        df_statsRow[numEntries*(len(df.columns) - 2) - 1] = k - index
 
       #record up until numPredict entries
       if numEntries == numPredict or k == numTourneys - 1:
@@ -122,9 +128,12 @@ def getTrainingData(df, numTourneys, index):
   df_train.reset_index(drop = True, inplace = True)
   df_train = pd.concat([df_train, df_stats], axis = 1)
   df_train.dropna(how = "any", inplace = True)
+  df_train.reset_index(drop = True, inplace = True)
 
   #name columns of df_train
-  cols = ["Name", "Score"]
+  cols = ["Name"]
+  if predict == False:
+    cols.append("Score")
   for i in range(numPredict):
     for j in range(len(df.columns) - 3):
       cols.append(str(i + 1) + "_" + df.columns[j + 1])
@@ -132,61 +141,6 @@ def getTrainingData(df, numTourneys, index):
   df_train.columns = cols
       
   return df_train
-
-#CREATE DATAFRAME FOR PREDICTION
-
-def getPredictionData(names):
-  print("Creating Prediction Data...\n")
-  df = pd.read_csv("golf.csv")
-  numTourneys = df["Tourney"].iloc[len(df["Tourney"]) - 1]
-  df_stats = pd.DataFrame() #dataframe to store player stats
-  numPredict = 2 #number of tournaments to predict on
-
-  #loop through each player and find most recent numPredict tournament stats
-  for j in range(len(names)):
-    numEntries = 0
-    df_statsRow = pd.DataFrame(np.zeros((1, numPredict*(len(df.columns) - 2))))
-    for k in range(numTourneys):
-      mask1 = df["Tourney"] == numTourneys - k
-      mask2 = df["Name"] == names["Name"].iloc[j]
-      mask = mask1 & mask2
-
-      #record stats if available
-      if len(df[mask]) == 1:
-        for l in range(len(df.columns) - 3):
-          df_statsRow[l + numEntries*(len(df.columns) - 2)] = df[mask].values[0][l+1]
-        numEntries += 1
-        df_statsRow[numEntries*(len(df.columns) - 2) - 1] = float(k + 1)
-
-      #record up until numPredict entries
-      if numEntries == numPredict or k == numTourneys - 1:
-        #marks missing values
-        if k == numTourneys - 1 and numEntries < numPredict:
-          df_statsRow[0] = float("NaN")
-        #appends player data to df_stats
-        if len(df_stats) == 0:
-          df_stats = df_statsRow
-        else:
-          df_stats = pd.concat([df_stats, df_statsRow], axis = 0)
-        break
-
-  #combine the tourney and stats dataframes and then add to total dataframe
-  df_stats.reset_index(drop = True, inplace = True)
-  names = pd.concat([names, df_stats], axis = 1)
-
-  #name columns of names
-  cols = ["Name"]
-  for i in range(numPredict):
-    for j in range(len(df.columns) - 3):
-      cols.append(str(i + 1) + "_" + df.columns[j + 1])
-    cols.append(str(i + 1) + "_Time")
-
-  names.columns = cols
-
-  #remove entries with missing data and export to csv
-  names.dropna(how = "any", inplace = True)
-  names.reset_index(drop = True, inplace = True)
-  return names
 
 #CREATE DATAFRAME OF PGA STATS
 
@@ -251,7 +205,7 @@ def createTrainingCSV():
     print(i, "/", numTourneys - numPredict)
 
     #get training data for one tourney from playerData
-    df_tourney = getTrainingData(df, numTourneys, i)
+    df_tourney = getTrainingData(i)
     if len(df_total) == 0:
       df_total = df_tourney
     else:
