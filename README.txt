@@ -19,6 +19,10 @@ V 2.0 -- 2/23/2021
   golf.csv and golf_train.csv now updated with each new tournament
   reduced code duplication by combining getPredictionData and getTrainingData
   renamed functions for clarity
+  
+V 3.0 -- 3/23/2021
+  prediction model now scrapes betting odds for top 10 predicted players and outputs result to prediction_rf.csv
+  new R file runs a Bayesian analysis on predicted players and outputs a second prediction to prediction_gp.csv
 
 A random forest golf prediction model which forecasts the top 10 players in the upcoming tournament on the pga tour
 Built using the scikitlearn module in python
