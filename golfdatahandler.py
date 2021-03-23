@@ -11,25 +11,26 @@ def scrapeStats(col, statID, year, tourneyID, pos = 2):
   #create soup object from url and retrieve players
   url = "https://www.pgatour.com/stats/stat."+statID+".y"+year+".eon.t"+tourneyID+".html"
 
+  players = []
   retry = False
   while True:
     soup = BeautifulSoup(requests.get(url).text, 'lxml')
 
     #get players from html tags and create dataframe
-    players = []
     players_html = soup.select("td a")[1:]
     for player in players_html:
       players.append(player.get_text())
-    df = pd.DataFrame()
-    df["Name"] = players
 
     #retry when data is missing
-    if len(df) > 0:
+    if len(players) > 0:
       break
     elif retry == False:
       print("Connection failed, retrying...")
       retry = True
-  
+
+  df = pd.DataFrame()
+  df["Name"] = players
+    
   #get stats from html tags
   stats = []
   stats_html = soup.find_all("td")
@@ -51,6 +52,57 @@ def scrapeStats(col, statID, year, tourneyID, pos = 2):
   df[col] = colVals
 
   return df
+
+#SCRAPE ODDS FROM BETTING ODDS WEBSITE
+
+def scrapeOdds(names):
+  df = pd.DataFrame()
+  
+  #create soup object from url and retrieve players
+  url = "https://www.vegasinsider.com/golf/odds/futures/"
+
+  retry = False
+  data = []
+  while True:
+    soup = BeautifulSoup(requests.get(url).text, 'lxml')
+
+    #get data from html tags and create dataframe
+    data_html = soup.select("td")[1:]
+    for datum_html in data_html:
+      datum = datum_html.get_text()
+      if "\n" not in datum:
+          data.append(datum)
+
+    #retry when data is missing
+    if len(data) > 0:
+      break
+    elif retry == False:
+      print("Connection failed, retrying...")
+      retry = True
+
+  #loop through data and append corresponding odds after players in names
+  warning = False
+  odds = []
+  for name in names["Name"]:
+    add = False
+    for datum in data:
+      if add:
+        odds.append(int(datum[1:]))
+        break
+      elif name == datum:
+        add = True
+    if add == False:
+      odds.append(int(0))
+      warning = True
+
+  #output error if values are missing
+  if warning:
+    print("\nError retrieving odds\nManually enter missing values")
+
+  result = pd.DataFrame()
+  result["Name"] = names["Name"]
+  result["Odds"] = odds
+  return result
 
 #COLLECT SINGLE TOURNAMENT DATA
 

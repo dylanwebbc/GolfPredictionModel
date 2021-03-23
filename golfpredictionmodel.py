@@ -157,24 +157,19 @@ def predictionModel(fileName, year, tourneyID):
         if predicted["Name"].iloc[i] == finalPrediction["Name"].iloc[j]:
           finalPrediction.loc[j, "Rank"] += predicted["Rank"].iloc[i]
 
-  #sort final prediction, remove missing values and display top 10
+  #sort final prediction and remove missing values
+  print(str(numReps), "/", str(numReps))
   finalPrediction.sort_values(by = "Rank", inplace = True)
   mask = finalPrediction["Rank"] != 0
   finalPrediction = finalPrediction[mask]
   finalPrediction.reset_index(drop = True, inplace = True)
-  finalPrediction.index += 1
-  finalPrediction.drop(["Rank"], axis = 1, inplace = True)
-  print(str(numReps), "/", str(numReps), "\n\nTournament Prediction:")
-  print(finalPrediction[:10])
+
+  #get betting odds for predicted top 10 and display
+  finalOutput = gdh.scrapeOdds(finalPrediction[:10])
+  finalOutput.index += 1
+  print("\nRandom Forest Prediction:")
+  print(finalOutput)
+  finalOutput.to_csv("prediction_rf.csv", index = False)
 
 
-#predictionModel("TournamentOfChampions.csv", 2021, "016")
-#predictionModel("SonyOpen.csv", 2021, "006")
-#predictionModel("AmericanExpress.csv", 2021, "002")
-#predictionModel("FarmersInsurance.csv", 2021, "004")
-#predictionModel("PhoenixOpen.csv", 2021, "003")
-#predictionModel("PebbleBeach.csv", 2021, "005")
-#predictionModel("GenesisOpen.csv", 2021, "007")
-#predictionModel("PuertoRicoOpen.csv", 2021, "483")
-  
-predictionModel("WorldGolf.csv", 2021, "473")
+predictionModel("Dell.csv", 2021, "470")
