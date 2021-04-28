@@ -1,3 +1,6 @@
+#Created by Dylan Webb
+#February 23, 2021
+
 import pandas as pd
 import numpy as np
 

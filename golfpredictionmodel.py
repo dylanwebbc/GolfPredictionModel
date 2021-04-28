@@ -1,3 +1,6 @@
+#Created by Dylan Webb
+#January 7, 2021
+
 import pandas as pd
 import numpy as np
 
@@ -168,8 +171,8 @@ def predictionModel(fileName, year, tourneyID):
   finalOutput = gdh.scrapeOdds(finalPrediction[:10])
   finalOutput.index += 1
   print("\nRandom Forest Prediction:")
+  pd.set_option('display.max_rows', None)
   print(finalOutput)
   finalOutput.to_csv("prediction_rf.csv", index = False)
 
-
-predictionModel("Dell.csv", 2021, "470")
+predictionModel("Valspar.csv", 2021, "475")

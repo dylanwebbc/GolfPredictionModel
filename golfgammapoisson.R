@@ -1,6 +1,10 @@
+#Created by Dylan Webb
+#March 23, 2021
+
+#set working directory and import data files
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 golf <- read.csv("golf.csv")
-prediction.rf <- read.csv("prediction_rf.csv")
+prediction.rf <- read.csv("prediction_rf.csv", fileEncoding = "UTF-8-BOM")
 
 #create yobs vector from golf.csv
 yobs <- c()
@@ -18,7 +22,7 @@ pred.dist <- function(a, b, ynew) {
   exp(lp)
 }
 
-#calculate predicted score for each golfer
+#calculate predicted score for each player
 PredictedScore <- c()
 for (name in prediction.rf$Name) {
   individual.data <- subset(yobs, Name == name, select = Score)
@@ -30,12 +34,14 @@ for (name in prediction.rf$Name) {
   bstar <- b + length(t(individual.data))
   
   PredictedScore <- rbind(PredictedScore, 
-                          which.max(pred.dist(astar, bstar, 0:35)))
+                          which.max(pred.dist(astar, bstar, 0:30)) - 1)
 }
 
-#combine prediction results into one dataframe and display
+#combine prediction results into one dataframe
 prediction.gp <- data.frame(PredictedScore)
 prediction.gp$Name <- prediction.rf$Name
 prediction.gp <- prediction.gp[order(PredictedScore),]
 
+#output results to csv and display
 write.csv(prediction.gp, "prediction_gp.csv", row.names = FALSE)
+prediction.gp
