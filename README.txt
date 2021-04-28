@@ -23,10 +23,14 @@ V 2.0 -- 2/23/2021
 V 3.0 -- 3/23/2021
   prediction model now scrapes betting odds for top 10 predicted players and outputs result to prediction_rf.csv
   new R file runs a Bayesian analysis on predicted players and outputs a second prediction to prediction_gp.csv
+  
+V 3.1 -- 4/28/2021
+  corrected prediction_rf.csv file compatibility in R code when betting odds are entered manually
+  included project write-up for the Bayesian portion of the model
 
 A random forest golf prediction model which forecasts the top 10 players in the upcoming tournament on the pga tour
-Built using the scikitlearn module in python
-Utilizes data scraped from pgatour.com
+Built using python and R
+Utilizes data scraped from pgatour.com and vegasinsider.com
 
 Methodology:
   Data is scraped from pgatour.com and stored in the golf.csv file
@@ -34,6 +38,7 @@ Methodology:
   A random forest is trained on golf_train.csv and then used to predict the scores for each player in the upcoming tournament
   The predicted scores are weighted by player performance in the same tournament held the previous season
   The last two steps are looped 200 times to minimize randomness, and the predicted top ten players are displayed
+  A Bayesian analysis can then be run in R to order the top ten players with higher accuracy using their past performance and current betting odds
 
 First-time Setup:
   Following the pattern of golf_tournaments.csv, create a csv file of IDs for all past tournaments you would like to train the model with
@@ -47,4 +52,5 @@ Instructions for Prediction:
     (names will be pasted in the form "last, first" and later automatically formatted to "first last")
   Run predictionModel from the golfpredictionmodel.py file
     (arguments: name of the csv file of names, year, tournament ID)
-  
+  Manually fill any missing values (marked by 0s) for betting odds in the prediction_rf.csv file
+  Run golfgammapoisson.R
