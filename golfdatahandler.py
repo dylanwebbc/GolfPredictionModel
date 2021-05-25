@@ -3,16 +3,17 @@
 
 import pandas as pd
 import numpy as np
+import math
 
 import requests
 from bs4 import BeautifulSoup
 
 #SCRAPE STATS FROM PGA WEBSITE
 
-def scrapeStats(col, statID, year, tourneyID, pos = 2):
+def scrapeStats(col, statID, year, tourneyID, pos = 2, e = "on"):
 
   #create soup object from url and retrieve players
-  url = "https://www.pgatour.com/stats/stat."+statID+".y"+year+".eon.t"+tourneyID+".html"
+  url = "https://www.pgatour.com/stats/stat."+statID+".y"+year+".e"+e+".t"+tourneyID+".html"
 
   players = []
   retry = False
@@ -118,18 +119,25 @@ def getPgaData(year, tourney):
   df6 = scrapeStats("Stroke Differential", "02417", year, tourney)
   df7 = scrapeStats("Scrambling", "130", year, tourney)
   df8 = scrapeStats("Birdie/Bogey", "02415", year, tourney)
+  df9 = scrapeStats("Consecutive Cuts", "122", year, tourney, 1, "off")
 
   #normalize scores
   df1["Score"] -= df1["Score"].iloc[0]
   df2["Halfway Score"] -= min(df2["Halfway Score"])
 
   #merge all stats into one dataframe
-  dataframes = [df1, df2, df3, df4, df5, df6, df7, df8]
+  dataframes = [df1, df2, df3, df4, df5, df6, df7, df8, df9]
   df_tourney = pd.DataFrame()
   df_tourney = dataframes[0]
   dataframes.pop(0)
   for df in dataframes:
-    df_tourney = pd.merge(df_tourney, df, on = "Name")
+    df_tourney = pd.merge(df_tourney, df, on = "Name", how = "outer")
+
+  #remove/replace NaNs associated with consecutive cuts
+  for i in range(len(df["Name"])):
+    if math.isnan(df_tourney["Consecutive Cuts"].iloc[i]):
+      df_tourney.loc[i, "Consecutive Cuts"] = 1
+  df_tourney.dropna(how = "any", inplace = True)
 
   return df_tourney
 
@@ -260,7 +268,7 @@ def createTrainingCSV():
     print(i, "/", numTourneys - numPredict)
 
     #get training data for one tourney from playerData
-    df_tourney = getTrainingData(i)
+    df_tourney = getTrainingData(i, pd.DataFrame())
     if len(df_total) == 0:
       df_total = df_tourney
     else:

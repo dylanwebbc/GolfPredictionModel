@@ -6,6 +6,7 @@ import numpy as np
 
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
+from sklearn.inspection import permutation_importance
 
 import golfdatahandler as gdh
 
@@ -72,7 +73,15 @@ def forestRegress(inputData):
                                 min_samples_leaf = 4, max_depth = 80,
                                 n_estimators = 80, n_jobs = -1)
 
-  forest.fit(X_train, y_train.values.ravel())
+  rf = forest.fit(X_train, y_train.values.ravel())
+
+  #uncomment to check the relative importance of the features
+  """importance = permutation_importance(rf, X_train, y_train)["importances_mean"]
+  features = sorted(zip(importance, X.columns), reverse=True)
+  print()
+  for i in range(len(X.columns)):
+    print("{:>24}\t{:<24}".format(features[i][1], features[i][0]))
+  print()"""
 
   output = pd.DataFrame()
   output["Predicted Score"] = forest.predict(inputData.drop(["Name"], axis = 1))
@@ -175,4 +184,4 @@ def predictionModel(fileName, year, tourneyID):
   print(finalOutput)
   finalOutput.to_csv("prediction_rf.csv", index = False)
 
-predictionModel("Valspar.csv", 2021, "475")
+predictionModel("Championship.csv", 2021, "033")
