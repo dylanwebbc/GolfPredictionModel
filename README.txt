@@ -23,10 +23,12 @@ V 2.0 -- 2/23/2021
 V 3.0 -- 3/23/2021
   prediction model now scrapes betting odds for top 10 predicted players and outputs result to prediction_rf.csv
   new R file runs a Bayesian analysis on predicted players and outputs a second prediction to prediction_gp.csv
-  
 V 3.1 -- 4/28/2021
   corrected prediction_rf.csv file compatibility in R code when betting odds are entered manually
   included project write-up for the Bayesian portion of the model
+V 3.2 -- 5/25/2021
+  fixed an error with the createTrainingCSV function in golfdatahandler.py
+  incorporated the statistic consecutive cuts into the random forest model
 
 A random forest golf prediction model which forecasts the top 10 players in the upcoming tournament on the pga tour
 Built using python and R
