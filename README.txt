@@ -29,6 +29,8 @@ V 3.1 -- 4/28/2021
 V 3.2 -- 5/25/2021
   fixed an error with the createTrainingCSV function in golfdatahandler.py
   incorporated the statistic consecutive cuts into the random forest model
+V 3.3 -- 6/8/2021
+  fixed pga site connection retry feature compatibility with new tournaments
 
 A random forest golf prediction model which forecasts the top 10 players in the upcoming tournament on the pga tour
 Built using python and R
