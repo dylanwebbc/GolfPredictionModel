@@ -28,6 +28,8 @@ def scrapeStats(col, statID, year, tourneyID, pos = 2, e = "on"):
     #retry when data is missing
     if len(players) > 0:
       break
+    elif col == "Past Score":
+      return pd.DataFrame()
     elif retry == False:
       print("Connection failed, retrying...")
       retry = True
