@@ -31,6 +31,9 @@ V 3.2 -- 5/25/2021
   incorporated the statistic consecutive cuts into the random forest model
 V 3.3 -- 6/8/2021
   fixed pga site connection retry feature compatibility with new tournaments
+V 3.4 -- 7/13/2021
+  user now manually inputs verification of existing data for the same tournament from the previous year in golfpredictionmodel.py
+  corrected csv encoding for player name comparison in golfgammapoisson.r
 
 A random forest golf prediction model which forecasts the top 10 players in the upcoming tournament on the pga tour
 Built using python and R
@@ -55,6 +58,6 @@ Instructions for Prediction:
   Create a new csv file with a single column titled "Name" and copy and paste field data from pgatour.com into that column
     (names will be pasted in the form "last, first" and later automatically formatted to "first last")
   Run predictionModel from the golfpredictionmodel.py file
-    (arguments: name of the csv file of names, year, tournament ID)
+    (arguments: name of the csv file of names, tournament ID, year, boolean for weighting by past year)
   Manually fill any missing values (marked by 0s) for betting odds in the prediction_rf.csv file
   Run golfgammapoisson.R
