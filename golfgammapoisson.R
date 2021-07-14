@@ -3,7 +3,7 @@
 
 #set working directory and import data files
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
-golf <- read.csv("golf.csv")
+golf <- read.csv("golf.csv", fileEncoding = "UTF-8-BOM")
 prediction.rf <- read.csv("prediction_rf.csv", fileEncoding = "UTF-8-BOM")
 
 #create yobs vector from golf.csv

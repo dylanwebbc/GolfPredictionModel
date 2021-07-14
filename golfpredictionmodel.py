@@ -91,7 +91,7 @@ def forestRegress(inputData):
 
 #PREDICTION MODEL
 
-def predictionModel(fileName, year, tourneyID):
+def predictionModel(fileName, tourneyID, year, weightPast = False):
 
   #check most recent id for update the golf and golf_train files for a new tournament
   ids = pd.read_csv("golf_tournaments.csv")
@@ -114,6 +114,12 @@ def predictionModel(fileName, year, tourneyID):
     ids.loc[tourneyNum + 1, str(year)] = tourneyID
     ids.to_csv("golf_tournaments.csv", index = False)
 
+  #scrape data for the same tournament from the previous year
+  if weightPast:
+    print("Scraping More Data from pgatour.com...\n")
+    past = gdh.scrapeStats("Past Score", "108", str(year - 1), tourneyID, 3)
+    past["Past Score"] -= past["Past Score"].iloc[0]
+
   #get prediction data to input into the random forest
   print("Creating Prediction Data...\n")
   names = pd.read_csv(fileName)
@@ -123,13 +129,6 @@ def predictionModel(fileName, year, tourneyID):
   finalPrediction = pd.DataFrame()
   finalPrediction["Name"] = golf_predict["Name"]
   finalPrediction["Rank"] = pd.DataFrame(np.zeros((len(finalPrediction["Name"]), 1)))
-
-  #create past prediction dataframe
-  weightPast = False
-  past = gdh.scrapeStats("Past Score", "108", str(year - 1), tourneyID, 3)
-  if len(past) > 0:
-    weightPast = True
-    past["Past Score"] -= past["Past Score"].iloc[0]
 
   #run prediction model multiple times and combine results in final prediction
   print("Prediction Progress...")
@@ -142,7 +141,7 @@ def predictionModel(fileName, year, tourneyID):
     p = forestRegress(golf_predict)
     predicted = pd.concat([golf_predict["Name"], p], axis = 1)
     
-    #weight prediction by past performance in the same tournament
+    #weight prediction by performance in the same tournament a year earlier
     if weightPast:
       for i in range(len(predicted["Name"])):
         for j in range(len(past["Name"])):
@@ -177,6 +176,7 @@ def predictionModel(fileName, year, tourneyID):
   finalPrediction.reset_index(drop = True, inplace = True)
 
   #get betting odds for predicted top 10 and display
+  print("\nScraping Data from vegasinsider.com...")
   finalOutput = gdh.scrapeOdds(finalPrediction[:10])
   finalOutput.index += 1
   print("\nRandom Forest Prediction:")
@@ -184,4 +184,4 @@ def predictionModel(fileName, year, tourneyID):
   print(finalOutput)
   finalOutput.to_csv("prediction_rf.csv", index = False)
 
-predictionModel("Championship.csv", 2021, "033")
+predictionModel("Open.csv", "100", 2021, True)
