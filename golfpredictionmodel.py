@@ -14,21 +14,22 @@ import golfdatahandler as gdh
 
 def updateGolf(year, tourneyID):
   print("Scraping Data from pgatour.com...\n")
-
-  #reformat tourneyID
-  tourneyID = str(tourneyID)
-  while len(tourneyID) < 3:
-    tourneyID = "0" + tourneyID
   
   df_total = pd.read_csv("golf.csv")
-  df_tourney = gdh.getPgaData(year, tourneyID)
 
-  df_tourney["Tourney"] = df_total["Tourney"].iloc[len(df_total["Tourney"]) - 1] + 1
+  #check for duplicate tournament data
+  if (df_total["TourneyID"].iloc[len(df_total["TourneyID"]) - 1] == int(tourneyID)):
+    return False
+
+  #get tournament data
+  df_tourney = gdh.getPgaData(year, tourneyID)
+  df_tourney["TourneyNum"] = df_total["TourneyNum"].iloc[len(df_total["TourneyNum"]) - 1] + 1
         
   #combine dataframe to the rest and output
-  df_tourney["Year"] = int(year)
   df_total = pd.concat([df_total, df_tourney], axis = 0)
   df_total.to_csv("golf.csv", index = False)
+
+  return True
 
 
 #UPDATE TRAINING DATAFRAME WITH ONE TOURNAMENT
@@ -48,16 +49,13 @@ def updateTrain():
 
 #FORMAT FIELD DATA FROM PGA WEBSITE
 #Each name is "last, first" in field, but "first last" in stats scrape
-def formatField(fileName):
-  df = pd.read_csv(fileName)
-  
-  #loop through every name and reformat
-  for i in range(len(df["Name"])):
-      name = df["Name"].iloc[i]
+def formatField(names):
+  for i in range(len(names["Name"])):
+      name = names["Name"].iloc[i]
       last_name = name[0:name.find(',')]
       first_name = name[(name.find(',') + 2):len(name)]
-      df.loc[i, "Name"] = first_name + " " + last_name
-  df.to_csv(fileName, index = False)
+      names.loc[i, "Name"] = first_name + " " + last_name
+  return names
 
 
 #RANDOM FOREST REGRESSOR
@@ -91,38 +89,55 @@ def forestRegress(inputData):
 
 #PREDICTION MODEL
 
-def predictionModel(fileName, tourneyID, year, weightPast = False):
+def predictionModel(fileName, tourneyID, weightPast = False):
 
-  #check most recent id for update the golf and golf_train files for a new tournament
+  #check most recent id for
   ids = pd.read_csv("golf_tournaments.csv")
-  tourneyNum = 0
-  while ids.loc[tourneyNum, str(year)] != 0:
-    tourneyNum += 1
-  tourneyNum -= 1
+  lastColumn = np.shape(ids)[1] - 1
+  year = ids.columns[lastColumn]
 
-  #reformat last tourneyID
-  lastID = str(ids.loc[tourneyNum, str(year)])
+  #detect if a new year has been added
+  newYear = False
+  if np.isnan(ids.iloc[0, lastColumn]):
+    lastColumn -= 1
+    newYear = True
+
+  #reformat the most recent tournament ID
+  lastRow = np.count_nonzero(ids.iloc[:, lastColumn].notnull()) - 1
+  lastID = str(int(ids.iloc[lastRow, lastColumn]))
   while len(lastID) < 3:
     lastID = "0" + lastID
-  
+
+  #update golf and training data if analyzing a new tournament
   if lastID != tourneyID:
-    updateGolf(str(year), ids.loc[tourneyNum, str(year)])
+    if not updateGolf(year, lastID):
+      print("Duplicate Data Detected for Tournament " + lastID + "\nProcess Aborted")
+      return
     updateTrain()
-    formatField(fileName)
     
-    #add current tournament ID to golf_tournaments file for next update
-    ids.loc[tourneyNum + 1, str(year)] = tourneyID
+    #add the new tournament ID to golf_tournaments file if it isn't there
+    #create a new row if necessary
+    if newYear:
+      ids.iloc[0, lastColumn + 1] = int(tourneyID)
+    elif lastRow == np.shape(ids)[0] - 1:
+      newRow = np.empty((1, lastColumn + 1))
+      newRow[:] = np.nan
+      newRow[0, lastColumn] = int(tourneyID)
+      newRow = pd.DataFrame(newRow, columns=ids.columns)
+      ids = ids.append(newRow, ignore_index = True)
+    else:
+      ids.iloc[lastRow + 1, lastColumn] = int(tourneyID)
     ids.to_csv("golf_tournaments.csv", index = False)
 
   #scrape data for the same tournament from the previous year
   if weightPast:
     print("Scraping More Data from pgatour.com...\n")
-    past = gdh.scrapeStats("Past Score", "108", str(year - 1), tourneyID, 3)
+    past = gdh.scrapeStats("Past Score", "108", str(int(year) - 1), tourneyID, 3)
     past["Past Score"] -= past["Past Score"].iloc[0]
 
   #get prediction data to input into the random forest
   print("Creating Prediction Data...\n")
-  names = pd.read_csv(fileName)
+  names = formatField(pd.read_csv(fileName))
   golf_predict = gdh.getTrainingData(-1, names)
 
   #create final prediction dataframe
@@ -184,4 +199,4 @@ def predictionModel(fileName, tourneyID, year, weightPast = False):
   print(finalOutput)
   finalOutput.to_csv("prediction_rf.csv", index = False)
 
-predictionModel("Open.csv", "100", 2021, True)
+predictionModel("NorthernTrust.csv", "027", True)

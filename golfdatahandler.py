@@ -112,16 +112,16 @@ def scrapeOdds(names):
 
 #COLLECT SINGLE TOURNAMENT DATA
 
-def getPgaData(year, tourney):
-  df1 = scrapeStats("Score", "108", year, tourney, 3) #Strokes
-  df2 = scrapeStats("Halfway Score", "116", year, tourney)
-  df3 = scrapeStats("Driving Accuracy", "102", year, tourney)
-  df4 = scrapeStats("Greens In Regulation", "103", year, tourney)
-  df5 = scrapeStats("Putting Average", "104", year, tourney)
-  df6 = scrapeStats("Stroke Differential", "02417", year, tourney)
-  df7 = scrapeStats("Scrambling", "130", year, tourney)
-  df8 = scrapeStats("Birdie/Bogey", "02415", year, tourney)
-  df9 = scrapeStats("Consecutive Cuts", "122", year, tourney, 1, "off")
+def getPgaData(year, tourneyID):
+  df1 = scrapeStats("Score", "108", year, tourneyID, 3) #Strokes
+  df2 = scrapeStats("Halfway Score", "116", year, tourneyID)
+  df3 = scrapeStats("Driving Accuracy", "102", year, tourneyID)
+  df4 = scrapeStats("Greens In Regulation", "103", year, tourneyID)
+  df5 = scrapeStats("Putting Average", "104", year, tourneyID)
+  df6 = scrapeStats("Stroke Differential", "02417", year, tourneyID)
+  df7 = scrapeStats("Scrambling", "130", year, tourneyID)
+  df8 = scrapeStats("Birdie/Bogey", "02415", year, tourneyID)
+  df9 = scrapeStats("Consecutive Cuts", "122", year, tourneyID, 1, "off")
 
   #normalize scores
   df1["Score"] -= df1["Score"].iloc[0]
@@ -141,6 +141,9 @@ def getPgaData(year, tourney):
       df_tourney.loc[i, "Consecutive Cuts"] = 1
   df_tourney.dropna(how = "any", inplace = True)
 
+  df_tourney["Year"] = int(year)
+  df_tourney["TourneyID"] = tourneyID
+
   return df_tourney
 
 #COLLECT TRAINING DATA FOR EACH PLAYER IN A GIVEN TOURNAMENT
@@ -150,31 +153,33 @@ def getTrainingData(index, df_train = pd.DataFrame()):
   numPredict = 2 #number of tournaments to predict on
   df_stats = pd.DataFrame()
   df = pd.read_csv("golf.csv")
-  numTourneys = df["Tourney"].iloc[len(df["Tourney"]) - 1]
+  df = df.drop(columns = ["Year", "TourneyID"])
+  numTourneys = df["TourneyNum"].iloc[len(df["TourneyNum"]) - 1]
   predict = True
 
   if df_train.empty:
     #if not predicting, take names and score from golf.csv
     predict = False
-    mask = df["Tourney"] == numTourneys - index
+    mask = df["TourneyNum"] == numTourneys - index
     df_train["Name"] = df[mask]["Name"]
     df_train["Score"] = df[mask]["Score"]
 
   #loop through each player and find most recent numPredict tournament stats
   for j in range(len(df_train["Name"])):
     numEntries = 0
-    df_statsRow = pd.DataFrame(np.zeros((1, numPredict*(len(df.columns) - 2))))
+    df_statsRow = pd.DataFrame(np.zeros((1, numPredict*(len(df.columns) - 1))))
+
     for k in range(index + 1, numTourneys):
-      mask1 = df["Tourney"] == numTourneys - k
+      mask1 = df["TourneyNum"] == numTourneys - k
       mask2 = df["Name"] == df_train["Name"].iloc[j]
       mask = mask1 & mask2
-
+      
       #record stats if available
       if len(df[mask]) == 1:
-        for l in range(len(df.columns) - 3):
-          df_statsRow[l + numEntries*(len(df.columns) - 2)] = df[mask].values[0][l+1]
+        for l in range(len(df.columns) - 2):
+          df_statsRow[l + numEntries*(len(df.columns) - 1)] = df[mask].values[0][l+1]
         numEntries += 1
-        df_statsRow[numEntries*(len(df.columns) - 2) - 1] = k - index
+        df_statsRow[numEntries*(len(df.columns) - 1) - 1] = k - index
 
       #record up until numPredict entries
       if numEntries == numPredict or k == numTourneys - 1:
@@ -200,7 +205,7 @@ def getTrainingData(index, df_train = pd.DataFrame()):
   if predict == False:
     cols.append("Score")
   for i in range(numPredict):
-    for j in range(len(df.columns) - 3):
+    for j in range(len(df.columns) - 2):
       cols.append(str(i + 1) + "_" + df.columns[j + 1])
     cols.append(str(i + 1) + "_Time")
   df_train.columns = cols
@@ -210,7 +215,7 @@ def getTrainingData(index, df_train = pd.DataFrame()):
 #CREATE DATAFRAME OF PGA STATS
 
 def createGolfCSV():
-  print("Scraping All Data from pgatour.com...")
+  print("Scraping All Data from pgatour.com...\n")
   tourneys = []
   tourneyNum = 1
   ids = pd.read_csv("golf_tournaments.csv")
@@ -218,51 +223,50 @@ def createGolfCSV():
   #iterate through each year of data
   for i in range(len(ids.columns)):
     year = str(ids.columns[i])
-    tourneys = ids[year].values
-    tourneys = tourneys[tourneys != 0]
+    tourneyIDs = ids[year][ids[year].notnull()]
     print("--" + year + "--")
 
     df_year = pd.DataFrame()
 
     #iterate through each tournament in the given year
     num = 0
-    for tourney in tourneys:
+    for tourneyID in tourneyIDs:
       #reformat tourneyID
-      tourney = str(tourney)
-      while len(tourney) < 3:
-        tourney = "0" + tourney
+      tourneyID = str(tourneyID)
+      while len(tourneyID) < 3:
+        tourneyID = "0" + tourneyID
         
-      print(num, "/", len(tourneys))
+      print(num, "/", len(tourneyIDs))
       num += 1
 
-      df_tourney = getPgaData(year, tourney)
-
-      df_tourney["Tourney"] = tourneyNum
+      df_tourney = getPgaData(year, tourneyID)
+      df_tourney["TourneyNum"] = tourneyNum
       tourneyNum += 1
         
       #combine dataframes from different tournaments
-      if tourney == tourneys[0]:
+      if tourneyID == tourneyIDs[0]:
         df_year = df_tourney
       else:
         df_year = pd.concat([df_year, df_tourney], axis = 0)
 
-    print(len(tourneys), "/", len(tourneys),"\n")
+    print(len(tourneyIDs), "/", len(tourneyIDs),"\n")
 
     #combine dataframes from different years
-    df_year["Year"] = int(year)
     if year == str(ids.columns[0]):
       df_total = df_year
     else:
       df_total = pd.concat([df_total, df_year], axis = 0)
+
+  print("Done")
 
   df_total.to_csv("golf.csv", index = False)
 
 #CREATE DATAFRAME FOR TRAINING
 
 def createTrainingCSV():
-  print("Creating Training Data...")
+  print("Creating Training Data...\n")
   df = pd.read_csv("golf.csv")
-  numTourneys = df["Tourney"].iloc[len(df["Tourney"]) - 1]
+  numTourneys = df["TourneyNum"].iloc[len(df["TourneyNum"]) - 1]
   df_total = pd.DataFrame() #dataframe to store ouput data
   numPredict = 2 #number of tournaments to predict on
 
@@ -277,6 +281,7 @@ def createTrainingCSV():
       df_total = pd.concat([df_total, df_tourney], axis = 0)
 
   print(numTourneys - numPredict, "/", numTourneys - numPredict, "\n")
+  print("Done")
 
   #remove entries with missing data and export to csv
   df_total.dropna(how = "any", inplace = True)
