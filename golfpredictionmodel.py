@@ -94,11 +94,12 @@ def predictionModel(fileName, tourneyID, weightPast = False):
   #check most recent id for
   ids = pd.read_csv("golf_tournaments.csv")
   lastColumn = np.shape(ids)[1] - 1
-  year = ids.columns[lastColumn]
+  year = int(ids.columns[lastColumn])
 
   #detect if a new year has been added
   newYear = False
   if np.isnan(ids.iloc[0, lastColumn]):
+    year -= 1
     lastColumn -= 1
     newYear = True
 
@@ -110,7 +111,7 @@ def predictionModel(fileName, tourneyID, weightPast = False):
 
   #update golf and training data if analyzing a new tournament
   if lastID != tourneyID:
-    if not updateGolf(year, lastID):
+    if not updateGolf(str(year), lastID):
       print("Duplicate Data Detected for Tournament " + lastID + "\nProcess Aborted")
       return
     updateTrain()
@@ -118,6 +119,7 @@ def predictionModel(fileName, tourneyID, weightPast = False):
     #add the new tournament ID to golf_tournaments file if it isn't there
     #create a new row if necessary
     if newYear:
+      year += 1
       ids.iloc[0, lastColumn + 1] = int(tourneyID)
     elif lastRow == np.shape(ids)[0] - 1:
       newRow = np.empty((1, lastColumn + 1))
@@ -132,7 +134,7 @@ def predictionModel(fileName, tourneyID, weightPast = False):
   #scrape data for the same tournament from the previous year
   if weightPast:
     print("Scraping More Data from pgatour.com...\n")
-    past = gdh.scrapeStats("Past Score", "108", str(int(year) - 1), tourneyID, 3)
+    past = gdh.scrapeStats("Past Score", "108", str(year - 1), tourneyID, 3)
     past["Past Score"] -= past["Past Score"].iloc[0]
 
   #get prediction data to input into the random forest
@@ -199,4 +201,4 @@ def predictionModel(fileName, tourneyID, weightPast = False):
   print(finalOutput)
   finalOutput.to_csv("prediction_rf.csv", index = False)
 
-predictionModel("NorthernTrust.csv", "027", True)
+predictionModel("Sanderson.csv", "054", True)
