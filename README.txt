@@ -42,6 +42,8 @@ V 3.5 -- 8/18/2021
   removed year as an argument and program automatically infers year
 V 3.6 -- 9/27/21
   fixed new year functionality
+  general code improvements
+  added docstrings
 
 A random forest golf prediction model which forecasts the top 10 players in the upcoming tournament on the pga tour and then ranks them using Bayesian analysis
 Built using python and R
