@@ -4,6 +4,7 @@ Created by Dylan Webb
 January 7, 2021
 """
 
+import sys
 import pandas as pd
 import numpy as np
 
@@ -27,15 +28,22 @@ def updateGolf(year, tourneyID):
   
   print("Scraping Data from pgatour.com...\n")
   df_total = pd.read_csv("golf.csv")
+  lastRow = len(df_total["TourneyID"]) - 1
 
   # Check for duplicate tournament data
-  if (df_total["TourneyID"].iloc[len(df_total["TourneyID"]) - 1] == int(tourneyID)):
-    raise ValueError("Duplicate Entry Detected for Tournament " + tourneyID + "\nProcess Aborted")
+  if (df_total["TourneyID"].iloc[lastRow] == int(tourneyID)):
+    raise ValueError("Duplicate Entry Detected for Tournament " + tourneyID)
 
   # Get tournament data
   df_tourney = gdh.getPgaData(year, tourneyID)
-  df_tourney["TourneyNum"] = df_total["TourneyNum"].iloc[len(df_total["TourneyNum"]) - 1] + 1
-        
+  df_tourney["TourneyNum"] = df_total["TourneyNum"].iloc[lastRow] + 1
+
+  # Check for incorrect tournament ID
+  if np.array_equal(df_total.iloc[lastRow,:10].to_numpy(),\
+                    df_tourney.iloc[len(df_tourney["Name"]) - 1,:10].to_numpy()):
+    raise ValueError("Duplicate Data Detected between Tournaments " + tourneyID +
+                     " and " + str(df_total["TourneyID"].iloc[lastRow]))
+  
   # Combine dataframe to the rest and output
   df_total = pd.concat([df_total, df_tourney], axis = 0)
   df_total.to_csv("golf.csv", index = False)
@@ -118,14 +126,14 @@ def forestRegress(inputData):
   return output
 
 
-def predictionModel(fileName, tourneyID, weightPast = False):
+def predictionModel(filename, tourneyID, weightPast = False):
   """Run the prediction by updating data from the previous tournament,
   updating the training data with the new data, creating data used for
   prediction, predicting using random forest regression, and outputing
   the final prediction of the top 10 accompanied by associated betting odds
 
   Parameters:
-      fileName (str) the name of the file containing the tournament field
+      filename (str) the name of the file containing the tournament field
       tourneyID (str) the three-digit tournament ID associated with this
                       tournament (found on pgatourn.com/stats)
       weightPast (boolean) whether or not the tournament was held last year
@@ -156,6 +164,8 @@ def predictionModel(fileName, tourneyID, weightPast = False):
       updateGolf(str(year), lastID)
     except ValueError as error:
       print(error)
+      print("Check that tournament ID was entered correctly\n" +
+            "as a numeric string of length 1 to 3")
       return
     updateTrain()
     
@@ -178,11 +188,24 @@ def predictionModel(fileName, tourneyID, weightPast = False):
   if weightPast:
     print("Scraping More Data from pgatour.com...\n")
     past = gdh.scrapeStats("Past Score", "108", str(year - 1), tourneyID, 3)
-    past["Past Score"] -= past["Past Score"].iloc[0]
+
+    # Check that past data actually exists
+    try:
+      past["Past Score"] -= past["Past Score"].iloc[0]
+    except KeyError:
+      print("KeyError: past data not found as expected from user input")
+      return
 
   # Get prediction data to input into the random forest
   print("Creating Prediction Data...\n")
-  names = formatField(pd.read_csv(fileName))
+  names = pd.DataFrame()
+
+  # Check that the file actually exists
+  try:
+    names = formatField(pd.read_csv(filename))
+  except FileNotFoundError as e:
+    print(e)
+    return
   golf_predict = gdh.getTrainingData(-1, names)
 
   # Create final prediction dataframe
@@ -244,4 +267,44 @@ def predictionModel(fileName, tourneyID, weightPast = False):
   print(finalOutput)
   finalOutput.to_csv("prediction_rf.csv", index = False)
 
-predictionModel("Sanderson.csv", "054", True)
+
+# Main loop to run prediction from terminal
+if __name__ == '__main__':
+
+  # Setup argument variables
+  filename = ""
+  tourneyID = ""
+  weightPastString = ""
+
+  # Get arguments from terminal if available
+  if len(sys.argv) == 3 or len(sys.argv) == 4:
+    filename = sys.argv[1]
+    tourneyID = sys.argv[2]
+
+    if len(sys.argv) == 4:
+      weightPastString = sys.argv[3]
+
+  # Get arguments from user input otherwise
+  else:
+    filename = input("Enter the filename where field data is stored: ")
+    tourneyID = input("Enter the tournament ID: ")
+    weightPastString = input("Is there data from last year to predict on?" +
+                             "(y/n): ")
+    print("")
+
+  # Evaluate weightPastString as a boolean
+  weightPast = False
+  if weightPastString.lower() in ["y", "yes"]:
+    weightPast = True
+
+  # Ensure tournament ID is properly formatted
+  while len(tourneyID) < 3:
+    tourneyID = "0" + tourneyID
+
+  # Ensure filename is properly formatted
+  if ".csv" not in filename:
+    filename += ".csv"
+
+  # Run prediction model with input
+  predictionModel(filename, tourneyID, weightPast)
+  input("\nPress ENTER to close")
