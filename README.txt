@@ -44,6 +44,10 @@ V 3.6 -- 9/27/21
   fixed new year functionality
   general code improvements
   added docstrings
+  
+V 4.0 -- 10/13/21
+  model is now accessed directly from the terminal so that the golfpredictionmodel.py doesn't need to be updated with each tournament
+  parameters are checked more thoroughly
 
 A random forest golf prediction model which forecasts the top 10 players in the upcoming tournament on the pga tour and then ranks them using Bayesian analysis
 Built using python and R
