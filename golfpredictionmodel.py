@@ -100,16 +100,13 @@ def forestRegress(inputData):
   X = df.drop(["Name", "Score"], axis = 1)
   y = df["Score"]
 
-  # Split the data into training data and testing data
-  X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = .3)
-
   # Setup the random forest
   forest = RandomForestRegressor(warm_start = False, oob_score = True, 
                                 min_samples_leaf = 4, max_depth = 80,
                                 n_estimators = 80, n_jobs = -1)
 
   # Fit the model to the training data
-  rf = forest.fit(X_train, y_train.values.ravel())
+  rf = forest.fit(X, y.values.ravel())
 
   # Uncomment to check the relative importance of the features
   """importance = permutation_importance(rf, X_train, y_train)["importances_mean"]
@@ -288,7 +285,7 @@ if __name__ == '__main__':
   else:
     filename = input("Enter the filename where field data is stored: ")
     tourneyID = input("Enter the tournament ID: ")
-    weightPastString = input("Is there data from last year to predict on?" +
+    weightPastString = input("Is there data from last year to predict on? " +
                              "(y/n): ")
     print("")
 
